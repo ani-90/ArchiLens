@@ -1,0 +1,15 @@
+services:
+  api:
+    image: myorg/api:latest
+    depends_on:
+      - db
+      - cache
+
+  db:
+    image: postgres:16
+
+  cache:
+    image: redis:7
+
+  worker:
+    build: ./worker
