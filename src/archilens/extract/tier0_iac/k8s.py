@@ -148,6 +148,7 @@ def parse_k8s(repo_path: str | Path) -> tuple[list[EvidenceRecord], list[EdgeRec
                     line=line,
                     tier=TIER,
                     confidence=CONFIDENCE,
+                    subtype=k8s_kind.lower(),
                     attrs={"k8s_kind": k8s_kind, "namespace": namespace},
                 )
             )

@@ -56,3 +56,12 @@ def test_malformed_file_does_not_crash_scan(tmp_path):
     nodes, edges = parse_terraform(tmp_path)
     assert nodes == []
     assert edges == []
+
+
+def test_subtype_populated_for_mapped_resources_and_none_for_unmapped():
+    nodes, _ = parse_terraform(FIXTURE)
+    by_id = {n.identity: n for n in nodes}
+    assert by_id["aws_s3_bucket.raw_telemetry"].subtype == "s3"
+    assert by_id["aws_lambda_function.normalize"].subtype == "lambda"
+    assert by_id["aws_dynamodb_table.events"].subtype == "dynamodb"
+    assert by_id["aws_iam_role.unmapped_kind"].subtype is None

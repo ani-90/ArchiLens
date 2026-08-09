@@ -77,3 +77,15 @@ def test_no_from_instruction_produces_no_nodes(tmp_path):
     nodes, edges = parse_dockerfile(tmp_path)
     assert nodes == []
     assert edges == []
+
+
+def test_subtype_is_none_when_base_image_matches_no_needle():
+    nodes, _ = parse_dockerfile(FIXTURE)
+    assert nodes[0].subtype is None  # "node:18-alpine" matches no datastore/queue/gateway needle
+
+
+def test_subtype_populated_for_recognized_base_image(tmp_path):
+    (tmp_path / "Dockerfile").write_text("FROM postgres:16\n")
+    nodes, _ = parse_dockerfile(tmp_path)
+    assert nodes[0].kind == "datastore"
+    assert nodes[0].subtype == "postgres"

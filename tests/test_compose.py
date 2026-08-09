@@ -33,3 +33,12 @@ def test_line_numbers_point_at_service_key():
     assert by_id["compose:api"].line == 2
     assert by_id["compose:db"].line == 8
     assert by_id["compose:cache"].line == 11
+
+
+def test_subtype_populated_from_image_and_none_for_unmatched():
+    nodes, _ = parse_compose(FIXTURE)
+    by_id = {n.identity: n for n in nodes}
+    assert by_id["compose:db"].subtype == "postgres"
+    assert by_id["compose:cache"].subtype == "redis"
+    assert by_id["compose:api"].subtype is None  # "myorg/api:latest" matches no needle
+    assert by_id["compose:worker"].subtype is None  # no image at all

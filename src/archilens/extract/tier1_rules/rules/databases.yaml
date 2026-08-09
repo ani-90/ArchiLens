@@ -1,0 +1,23 @@
+- id: postgres-client
+  kind: datastore
+  subtype: postgres
+  confidence: 0.75
+  patterns:
+    - lang: python
+      match: psycopg2\.connect\(
+    - lang: javascript
+      match: require\(\s*["']pg["']\)
+    - lang: go
+      match: sql\.Open\(\s*["']postgres["']
+
+- id: redis-client
+  kind: datastore
+  subtype: redis
+  confidence: 0.75
+  patterns:
+    - lang: python
+      match: redis\.(?:Redis|StrictRedis)\(
+    - lang: javascript
+      match: new\s+Redis\(
+    - lang: go
+      match: redis\.NewClient\(
