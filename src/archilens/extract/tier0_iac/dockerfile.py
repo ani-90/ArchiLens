@@ -12,7 +12,7 @@ import re
 from pathlib import Path
 
 from archilens.extract.schema import EdgeRecord, EvidenceRecord
-from archilens.extract.tier0_iac.compose import _kind_for_image
+from archilens.extract.tier0_iac.compose import _kind_and_subtype_for_image
 
 TIER = 0
 CONFIDENCE = 1.0
@@ -81,12 +81,14 @@ def parse_dockerfile(repo_path: str | Path) -> tuple[list[EvidenceRecord], list[
                 idx = len(stages)
                 label = stage_name if stage_name else f"stage{idx}"
                 identity = f"docker:{file_str}#{label}"
+                kind, subtype = _kind_and_subtype_for_image(base_image)
 
                 current = {
                     "identity": identity,
                     "line": line_no,
                     "base_image": base_image,
-                    "kind": _kind_for_image(base_image),
+                    "kind": kind,
+                    "subtype": subtype,
                     "exposed_ports": [],
                     "extends": stage_identities.get(base_image.lower()),
                 }
@@ -132,6 +134,7 @@ def parse_dockerfile(repo_path: str | Path) -> tuple[list[EvidenceRecord], list[
                     line=stage["line"],
                     tier=TIER,
                     confidence=CONFIDENCE,
+                    subtype=stage["subtype"],
                     attrs=attrs,
                 )
             )

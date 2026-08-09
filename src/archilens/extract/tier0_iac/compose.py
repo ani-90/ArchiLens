@@ -16,39 +16,40 @@ TIER = 0
 CONFIDENCE = 1.0
 
 # Substring match against the service's image name. First match wins.
-# Anything unmatched defaults to "service" (compose services are
+# Anything unmatched defaults to ("service", None) (compose services are
 # application code, not infra, unless the image says otherwise).
+# Entries are (needle, kind, subtype).
 IMAGE_KIND_MAP = [
-    ("postgres", "datastore"),
-    ("mysql", "datastore"),
-    ("mariadb", "datastore"),
-    ("mongo", "datastore"),
-    ("redis", "datastore"),
-    ("dynamodb", "datastore"),
-    ("cassandra", "datastore"),
-    ("elasticsearch", "datastore"),
-    ("opensearch", "datastore"),
-    ("rabbitmq", "queue"),
-    ("kafka", "queue"),
-    ("sqs", "queue"),
-    ("nats", "queue"),
-    ("nginx", "gateway"),
-    ("traefik", "gateway"),
-    ("envoy", "gateway"),
+    ("postgres", "datastore", "postgres"),
+    ("mysql", "datastore", "mysql"),
+    ("mariadb", "datastore", "mariadb"),
+    ("mongo", "datastore", "mongodb"),
+    ("redis", "datastore", "redis"),
+    ("dynamodb", "datastore", "dynamodb"),
+    ("cassandra", "datastore", "cassandra"),
+    ("elasticsearch", "datastore", "elasticsearch"),
+    ("opensearch", "datastore", "opensearch"),
+    ("rabbitmq", "queue", "rabbitmq"),
+    ("kafka", "queue", "kafka"),
+    ("sqs", "queue", "sqs"),
+    ("nats", "queue", "nats"),
+    ("nginx", "gateway", "nginx"),
+    ("traefik", "gateway", "traefik"),
+    ("envoy", "gateway", "envoy"),
 ]
 
 _COMPOSE_FILE_RE = re.compile(r"^docker-compose.*\.ya?ml$|^compose\.ya?ml$", re.IGNORECASE)
 _SKIP_DIRS = {".git", "node_modules"}
 
 
-def _kind_for_image(image: str | None) -> str:
+def _kind_and_subtype_for_image(image: str | None) -> tuple[str, str | None]:
     if not image:
-        return "service"
+        return "service", None
     lowered = image.lower()
-    for needle, kind in IMAGE_KIND_MAP:
+    for needle, kind, subtype in IMAGE_KIND_MAP:
         if needle in lowered:
-            return kind
-    return "service"
+            return kind, subtype
+    return "service", None
 
 
 def _find_service_line(raw: str, service_name: str) -> int | None:
@@ -106,15 +107,17 @@ def parse_compose(repo_path: str | Path) -> tuple[list[EvidenceRecord], list[Edg
             config = config or {}
             image = config.get("image") if isinstance(config, dict) else None
             line = _find_service_line(raw, service_name)
+            kind, subtype = _kind_and_subtype_for_image(image)
 
             nodes.append(
                 EvidenceRecord(
-                    kind=_kind_for_image(image),
+                    kind=kind,
                     identity=f"compose:{service_name}",
                     file=file_str,
                     line=line,
                     tier=TIER,
                     confidence=CONFIDENCE,
+                    subtype=subtype,
                     attrs={"image": image} if image else {},
                 )
             )
