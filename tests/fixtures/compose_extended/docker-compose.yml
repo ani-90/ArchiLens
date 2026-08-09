@@ -1,0 +1,21 @@
+services:
+  web:
+    image: nginx:1.25
+    depends_on:
+      api:
+        condition: service_healthy
+
+  api:
+    image: myorg/api:latest
+    depends_on:
+      - queue
+      - search-index
+
+  queue:
+    image: RABBITMQ:3-management
+
+  search-index:
+    image: opensearchproject/opensearch:2
+
+  scratch:
+    build: ./scratch
