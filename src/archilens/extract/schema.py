@@ -16,6 +16,7 @@ class EvidenceRecord:
     line: int | None
     tier: int
     confidence: float
+    subtype: str | None = None
     attrs: dict[str, Any] = field(default_factory=dict)
 
 

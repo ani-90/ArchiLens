@@ -20,23 +20,26 @@ CONFIDENCE = 1.0
 # Seed mapping. Grows as tier0 coverage expands — not meant to be exhaustive;
 # unmapped resource types still produce a node with kind="unknown" rather
 # than being dropped, since the identity/evidence is still real signal.
-KIND_MAP = {
-    "aws_s3_bucket": "datastore",
-    "aws_lambda_function": "service",
-    "aws_dynamodb_table": "datastore",
-    "aws_sqs_queue": "queue",
-    "aws_sns_topic": "queue",
-    "aws_rds_cluster": "datastore",
-    "aws_rds_instance": "datastore",
-    "aws_db_instance": "datastore",
-    "aws_kinesis_stream": "queue",
-    "aws_api_gateway_rest_api": "service",
-    "aws_apigatewayv2_api": "service",
-    "aws_ecs_service": "service",
-    "aws_ecs_task_definition": "service",
-    "aws_sfn_state_machine": "service",
-    "aws_elasticache_cluster": "datastore",
-    "aws_msk_cluster": "queue",
+# Values are (kind, subtype): kind is the coarse bucket everything downstream
+# reasons about, subtype is the granular resource type used for naming,
+# icon selection, and eval ground-truth matching.
+KIND_MAP: dict[str, tuple[str, str]] = {
+    "aws_s3_bucket": ("datastore", "s3"),
+    "aws_lambda_function": ("service", "lambda"),
+    "aws_dynamodb_table": ("datastore", "dynamodb"),
+    "aws_sqs_queue": ("queue", "sqs"),
+    "aws_sns_topic": ("queue", "sns"),
+    "aws_rds_cluster": ("datastore", "rds"),
+    "aws_rds_instance": ("datastore", "rds"),
+    "aws_db_instance": ("datastore", "rds"),
+    "aws_kinesis_stream": ("queue", "kinesis"),
+    "aws_api_gateway_rest_api": ("service", "apigateway"),
+    "aws_apigatewayv2_api": ("service", "apigateway"),
+    "aws_ecs_service": ("service", "ecs"),
+    "aws_ecs_task_definition": ("service", "ecs"),
+    "aws_sfn_state_machine": ("service", "stepfunctions"),
+    "aws_elasticache_cluster": ("datastore", "elasticache"),
+    "aws_msk_cluster": ("queue", "msk"),
 }
 
 _SKIP_DIRS = {".terraform", ".git", "node_modules"}
@@ -112,15 +115,17 @@ def parse_terraform(repo_path: str | Path) -> tuple[list[EvidenceRecord], list[E
                     identity = f"{rtype}.{name}"
                     line = _find_resource_line(raw, rtype, name)
                     file_str = str(tf_file)
+                    kind, subtype = KIND_MAP.get(rtype, ("unknown", None))
 
                     nodes.append(
                         EvidenceRecord(
-                            kind=KIND_MAP.get(rtype, "unknown"),
+                            kind=kind,
                             identity=identity,
                             file=file_str,
                             line=line,
                             tier=TIER,
                             confidence=CONFIDENCE,
+                            subtype=subtype,
                             attrs={"resource_type": rtype},
                         )
                     )
