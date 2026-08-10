@@ -1,0 +1,166 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: db
+  namespace: data
+spec:
+  template:
+    metadata:
+      labels:
+        app: db
+    spec:
+      containers:
+        - name: db
+          image: postgres:16
+          envFrom:
+            - secretRef:
+                name: db-secret
+      volumes:
+        - name: cfg-vol
+          configMap:
+            name: db-cfg
+        - name: data-vol
+          persistentVolumeClaim:
+            claimName: db-pvc
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: agent
+  namespace: default
+spec:
+  template:
+    metadata:
+      labels:
+        app: agent
+    spec:
+      containers:
+        - name: agent
+          image: myorg/agent:latest
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: nightly
+  namespace: default
+spec:
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+            - name: nightly
+              image: myorg/nightly:latest
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: onetime
+  namespace: default
+spec:
+  template:
+    spec:
+      containers:
+        - name: onetime
+          image: myorg/onetime:latest
+          envFrom:
+            - secretRef:
+                name: job-secret
+---
+apiVersion: apps/v1
+kind: ReplicaSet
+metadata:
+  name: legacy
+  namespace: default
+spec:
+  template:
+    metadata:
+      labels:
+        app: legacy
+    spec:
+      containers:
+        - name: legacy
+          image: myorg/legacy:latest
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: db-pvc
+  namespace: data
+spec:
+  accessModes: [ReadWriteOnce]
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: db-secret
+  namespace: data
+data:
+  password: cGFzcw==
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: db-cfg
+  namespace: data
+data:
+  MODE: primary
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: job-secret
+  namespace: default
+data:
+  token: dG9rZW4=
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: db-svc
+  namespace: data
+spec:
+  selector:
+    app: db
+  ports:
+    - port: 5432
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: cross-ns-svc
+  namespace: default
+spec:
+  selector:
+    app: db
+  ports:
+    - port: 5432
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: legacy-svc
+  namespace: default
+spec:
+  selector:
+    app: legacy
+  ports:
+    - port: 8080
+---
+apiVersion: v1
+kind: Pod
+metadata: {}
+spec:
+  containers:
+    - name: nameless
+      image: myorg/nameless:latest
+---
+justastring
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: "quoted-secret"
+  namespace: default
+data:
+  key: dmFsdWU=

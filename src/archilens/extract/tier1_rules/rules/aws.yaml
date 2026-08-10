@@ -1,0 +1,44 @@
+- id: aws-s3-client
+  kind: datastore
+  subtype: s3
+  confidence: 0.75
+  patterns:
+    - lang: python
+      match: boto3\.(?:client|resource)\(\s*["']s3["']
+    - lang: javascript
+      match: new\s+(?:S3Client|AWS\.S3)\(
+    - lang: go
+      match: s3\.(?:New|NewFromConfig)\(
+
+- id: aws-s3-bucket-name
+  kind: datastore
+  subtype: s3
+  confidence: 0.9
+  capture_arg: bucket_name
+  patterns:
+    - lang: python
+      match: \.Bucket\(\s*["'](?P<value>[\w.-]+)["']\)
+
+- id: aws-dynamodb-client
+  kind: datastore
+  subtype: dynamodb
+  confidence: 0.75
+  patterns:
+    - lang: python
+      match: boto3\.(?:client|resource)\(\s*["']dynamodb["']
+    - lang: javascript
+      match: new\s+DynamoDBClient\(
+    - lang: go
+      match: dynamodb\.(?:New|NewFromConfig)\(
+
+- id: aws-sqs-client
+  kind: queue
+  subtype: sqs
+  confidence: 0.75
+  patterns:
+    - lang: python
+      match: boto3\.client\(\s*["']sqs["']
+    - lang: javascript
+      match: new\s+SQSClient\(
+    - lang: go
+      match: sqs\.(?:New|NewFromConfig)\(
