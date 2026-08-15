@@ -23,6 +23,7 @@ the `attrs` shapes below look unfamiliar.
 | File | Extractor | Fixtures covered |
 |---|---|---|
 | [python.md](python.md) | `parse_python_ast` (`src/archilens/extract/tier2_ast/python.py`) | `tests/fixtures/tier2_ast` |
+| [typescript.md](typescript.md) | `parse_typescript_ast` (`src/archilens/extract/tier2_ast/typescript.py`) | `tests/fixtures/tier2_ast` |
 
 ## Notes on reading the output
 
