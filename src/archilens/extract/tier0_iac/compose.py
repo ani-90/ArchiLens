@@ -73,6 +73,20 @@ def _iter_compose_files(repo_path: Path):
             yield path
 
 
+def _extract_build_context(config: dict) -> str | None:
+    """`build:` is either a bare path string or a mapping with a `context`
+    key -- both name the directory holding this service's code, relative to
+    the compose file's own directory."""
+    build = config.get("build")
+    if isinstance(build, str):
+        return build
+    if isinstance(build, dict):
+        context = build.get("context")
+        if isinstance(context, str):
+            return context
+    return None
+
+
 def _normalize_depends_on(value: object) -> list[str]:
     if value is None:
         return []
@@ -109,6 +123,13 @@ def parse_compose(repo_path: str | Path) -> tuple[list[EvidenceRecord], list[Edg
             line = _find_service_line(raw, service_name)
             kind, subtype = _kind_and_subtype_for_image(image)
 
+            attrs: dict[str, object] = {}
+            if image:
+                attrs["image"] = image
+            build_context = _extract_build_context(config) if isinstance(config, dict) else None
+            if build_context:
+                attrs["build_context"] = build_context
+
             nodes.append(
                 EvidenceRecord(
                     kind=kind,
@@ -118,7 +139,7 @@ def parse_compose(repo_path: str | Path) -> tuple[list[EvidenceRecord], list[Edg
                     tier=TIER,
                     confidence=CONFIDENCE,
                     subtype=subtype,
-                    attrs={"image": image} if image else {},
+                    attrs=attrs,
                 )
             )
 

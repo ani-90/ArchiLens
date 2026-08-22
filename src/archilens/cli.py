@@ -9,7 +9,11 @@ from archilens.extract.tier1_rules.engine import parse_tier1_rules
 from archilens.extract.tier2_ast.python import parse_python_ast
 from archilens.extract.tier2_ast.typescript import parse_typescript_ast
 from archilens.graph.assemble import assemble_graph
-from archilens.graph.resolve import resolve_cross_file_calls, resolve_same_scope_calls
+from archilens.graph.resolve import (
+    resolve_build_context_containment,
+    resolve_cross_file_calls,
+    resolve_same_scope_calls,
+)
 
 EXTRACTORS = [
     ("terraform", parse_terraform),
@@ -43,12 +47,17 @@ def scan(repo_path: str) -> None:
     result = resolve_cross_file_calls(result)
     resolved_cross_file = before_cross_file - len(result.dropped_edges)
 
+    before_containment_edges = result.graph.number_of_edges()
+    result = resolve_build_context_containment(result)
+    resolved_containment = result.graph.number_of_edges() - before_containment_edges
+
     print(
         f"assembled graph: {result.graph.number_of_nodes()} nodes, "
         f"{result.graph.number_of_edges()} edges, "
         f"{len(result.dropped_edges)} edges dropped (no matching node), "
         f"{resolved_same_scope} resolved via same-scope calls, "
-        f"{resolved_cross_file} resolved via cross-file calls"
+        f"{resolved_cross_file} resolved via cross-file calls, "
+        f"{resolved_containment} added via build-context containment"
     )
 
 

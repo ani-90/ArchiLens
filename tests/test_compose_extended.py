@@ -49,7 +49,7 @@ def test_service_with_only_build_has_no_image_attr_and_service_kind():
     by_id = {n.identity: n for n in nodes}
     scratch = by_id["compose:scratch"]
     assert scratch.kind == "service"
-    assert scratch.attrs == {}
+    assert "image" not in scratch.attrs
 
 
 def test_dashed_service_name_line_anchor():

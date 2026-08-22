@@ -164,3 +164,72 @@ def resolve_cross_file_calls(assembly: AssemblyResult) -> AssemblyResult:
             still_dropped.append(edge)
 
     return AssemblyResult(graph=graph, dropped_edges=still_dropped)
+
+
+# --- Identity resolution, step B2.1: compose build-context containment.
+#
+# A compose service's `build: ./app` (or `build: {context: ./app}`) is a
+# direct textual statement from the repo itself: "this service's code lives
+# in this directory." That's a different, stronger kind of evidence than
+# name-matching across IaC formats (e.g. guessing that `compose:api` and a
+# k8s `Service/default/api` are "the same thing" just because both happen
+# to be called "api") -- nothing textually states that second link, so it's
+# deliberately not attempted here.
+#
+# This pass links a compose service node to every tier 1/2 code node whose
+# file falls under that service's build-context directory, resolved
+# relative to the compose file's own directory. Unlike the earlier passes,
+# this doesn't recover a dropped edge -- no extractor ever emitted "service
+# X owns file Y" as an edge attempt, since tier 0 and tiers 1/2 don't know
+# about each other. It synthesizes a new edge, but only from a literal
+# directory-containment fact, carrying the compose file's own file:line as
+# its evidence citation -- not a fabricated or LLM-guessed claim.
+
+
+def _is_under(file_path: str, base_dir: str) -> bool:
+    file_norm = os.path.normpath(file_path)
+    base_norm = os.path.normpath(base_dir)
+    try:
+        common = os.path.commonpath([file_norm, base_norm])
+    except ValueError:
+        return False  # e.g. different drives on Windows
+    return common == base_norm
+
+
+def resolve_build_context_containment(assembly: AssemblyResult) -> AssemblyResult:
+    graph = assembly.graph
+
+    for service_id, service_data in list(graph.nodes(data=True)):
+        for service_ev in service_data["evidence"]:
+            build_context = service_ev.attrs.get("build_context")
+            if not build_context:
+                continue
+
+            base_dir = os.path.normpath(
+                os.path.join(os.path.dirname(service_ev.file), build_context)
+            )
+
+            for code_id, code_data in list(graph.nodes(data=True)):
+                if code_id == service_id:
+                    continue
+                for code_ev in code_data["evidence"]:
+                    if code_ev.tier not in (1, 2):
+                        continue
+                    if not _is_under(code_ev.file, base_dir):
+                        continue
+                    graph.add_edge(
+                        service_id,
+                        code_id,
+                        evidence=EdgeRecord(
+                            src=service_id,
+                            dst=code_id,
+                            file=service_ev.file,
+                            line=service_ev.line,
+                            tier=0,
+                            confidence=service_ev.confidence,
+                            attrs={"relation": "build_context_contains", "build_context": build_context},
+                        ),
+                    )
+                    break  # one edge per code node is enough, its own evidence has all its own file:line records
+
+    return AssemblyResult(graph=graph, dropped_edges=assembly.dropped_edges)

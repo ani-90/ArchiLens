@@ -42,3 +42,22 @@ def test_subtype_populated_from_image_and_none_for_unmatched():
     assert by_id["compose:cache"].subtype == "redis"
     assert by_id["compose:api"].subtype is None  # "myorg/api:latest" matches no needle
     assert by_id["compose:worker"].subtype is None  # no image at all
+
+
+def test_build_context_captured_for_bare_string_form():
+    nodes, _ = parse_compose(FIXTURE)
+    by_id = {n.identity: n for n in nodes}
+    assert by_id["compose:worker"].attrs["build_context"] == "./worker"
+    assert "build_context" not in by_id["compose:api"].attrs  # image-only, no build key
+
+
+def test_build_context_captured_for_mapping_form(tmp_path):
+    (tmp_path / "docker-compose.yml").write_text(
+        "services:\n"
+        "  api:\n"
+        "    build:\n"
+        "      context: ./app\n"
+        "      dockerfile: Dockerfile.api\n"
+    )
+    nodes, _ = parse_compose(tmp_path)
+    assert nodes[0].attrs["build_context"] == "./app"
