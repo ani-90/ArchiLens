@@ -11,15 +11,18 @@ AST)'s job, not this one's. See spec Part II, Stage 1, Tier 1.
 """
 from __future__ import annotations
 
+import hashlib
 import re
 from dataclasses import dataclass
 from pathlib import Path
 
 import yaml
 
+from archilens.cache import ExtractionCache
 from archilens.extract.schema import EdgeRecord, EvidenceRecord
 
 TIER = 1
+_EXTRACTOR_NAME = "tier1"
 
 _RULES_DIR = Path(__file__).parent / "rules"
 
@@ -171,48 +174,76 @@ def _iter_source_files(repo_path: Path, languages: set[str]):
             yield path, lang
 
 
+def _hash_rules(rules_dir: Path) -> str:
+    """A cached result is only valid for the exact rule set that produced
+    it -- a custom rules_dir must never reuse a cache entry written under a
+    different rule set for the same file content. Hashing the rule files'
+    own content (not the directory path) means this is correct even if two
+    different rules_dir paths happen to hold byte-identical rules."""
+    digest = hashlib.sha256()
+    for rule_file in sorted(rules_dir.glob("*.yaml")):
+        digest.update(rule_file.read_bytes())
+    return digest.hexdigest()
+
+
 def parse_tier1_rules(
-    repo_path: str | Path, rules_dir: str | Path | None = None
+    repo_path: str | Path,
+    rules_dir: str | Path | None = None,
+    cache: ExtractionCache | None = None,
 ) -> tuple[list[EvidenceRecord], list[EdgeRecord]]:
     repo_path = Path(repo_path)
-    rules = _load_rules(Path(rules_dir) if rules_dir else _RULES_DIR)
+    resolved_rules_dir = Path(rules_dir) if rules_dir else _RULES_DIR
+    rules = _load_rules(resolved_rules_dir)
     index = _index_by_language(rules)
+    extractor_name = f"{_EXTRACTOR_NAME}:{_hash_rules(resolved_rules_dir)}"
 
-    nodes: list[EvidenceRecord] = []
-    edges: list[EdgeRecord] = []  # tier 1 never produces edges -- see module docstring
+    all_nodes: list[EvidenceRecord] = []
+    all_edges: list[EdgeRecord] = []  # tier 1 never produces edges -- see module docstring
 
     for source_file, lang in _iter_source_files(repo_path, set(index)):
-        try:
-            raw = source_file.read_text(encoding="utf-8")
-        except Exception:
-            continue
+        def compute(source_file=source_file, lang=lang):
+            try:
+                raw = source_file.read_text(encoding="utf-8")
+            except Exception:
+                return [], []
 
-        stripped = _STRIPPERS[lang](raw)
-        file_str = str(source_file)
+            stripped = _STRIPPERS[lang](raw)
+            file_str = str(source_file)
+            file_nodes: list[EvidenceRecord] = []
 
-        for rule, pattern in index[lang]:
-            for match in pattern.regex.finditer(stripped):
-                line = stripped.count("\n", 0, match.start()) + 1
-                attrs = {"rule_id": rule.id}
+            for rule, pattern in index[lang]:
+                for match in pattern.regex.finditer(stripped):
+                    line = stripped.count("\n", 0, match.start()) + 1
+                    attrs = {"rule_id": rule.id}
 
-                if rule.capture_arg:
-                    value = match.group("value")
-                    identity = f"{rule.id}:{value}"
-                    attrs[rule.capture_arg] = value
-                else:
-                    identity = f"{rule.id}:{file_str}:{line}"
+                    if rule.capture_arg:
+                        value = match.group("value")
+                        identity = f"{rule.id}:{value}"
+                        attrs[rule.capture_arg] = value
+                    else:
+                        identity = f"{rule.id}:{file_str}:{line}"
 
-                nodes.append(
-                    EvidenceRecord(
-                        kind=rule.kind,
-                        identity=identity,
-                        file=file_str,
-                        line=line,
-                        tier=TIER,
-                        confidence=rule.confidence,
-                        subtype=rule.subtype,
-                        attrs=attrs,
+                    file_nodes.append(
+                        EvidenceRecord(
+                            kind=rule.kind,
+                            identity=identity,
+                            file=file_str,
+                            line=line,
+                            tier=TIER,
+                            confidence=rule.confidence,
+                            subtype=rule.subtype,
+                            attrs=attrs,
+                        )
                     )
-                )
 
-    return nodes, edges
+            return file_nodes, []
+
+        if cache is not None:
+            nodes, edges = cache.get_or_compute(source_file, extractor_name, compute)
+        else:
+            nodes, edges = compute()
+
+        all_nodes.extend(nodes)
+        all_edges.extend(edges)
+
+    return all_nodes, all_edges

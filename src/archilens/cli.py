@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 
+from archilens.cache import ExtractionCache
 from archilens.extract.tier0_iac.compose import parse_compose
 from archilens.extract.tier0_iac.k8s import parse_k8s
 from archilens.extract.tier0_iac.terraform import parse_terraform
@@ -24,18 +25,30 @@ EXTRACTORS = [
     ("typescript", parse_typescript_ast),
 ]
 
+# Tier 0 IaC extractors are cheap (few files, no tree-sitter parsing) and
+# aren't wired into the cache yet -- only the two AST parsers and the
+# regex-per-source-file tier 1 engine, where re-parsing on every scan is
+# actually expensive, opt in.
+_CACHEABLE = {"tier1", "python", "typescript"}
+
 
 def scan(repo_path: str) -> None:
+    cache = ExtractionCache(repo_path)
+
     all_nodes = []
     all_edges = []
     for source_name, extractor in EXTRACTORS:
-        nodes, edges = extractor(repo_path)
+        if source_name in _CACHEABLE:
+            nodes, edges = extractor(repo_path, cache=cache)
+        else:
+            nodes, edges = extractor(repo_path)
         for n in nodes:
             print(f"[node:{source_name}] {n.kind:<10} {n.identity:<40} {n.file}:{n.line}")
         for e in edges:
             print(f"[edge:{source_name}] {e.src} -> {e.dst}  {e.file}:{e.line}")
         all_nodes.extend(nodes)
         all_edges.extend(edges)
+    cache.flush()
     print(f"\n{len(all_nodes)} nodes, {len(all_edges)} edges (tiers 0-2, no LLM)")
 
     result = assemble_graph(all_nodes, all_edges)
