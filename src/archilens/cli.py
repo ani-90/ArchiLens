@@ -8,6 +8,7 @@ from archilens.extract.tier0_iac.terraform import parse_terraform
 from archilens.extract.tier1_rules.engine import parse_tier1_rules
 from archilens.extract.tier2_ast.python import parse_python_ast
 from archilens.extract.tier2_ast.typescript import parse_typescript_ast
+from archilens.graph.assemble import assemble_graph
 
 EXTRACTORS = [
     ("terraform", parse_terraform),
@@ -31,6 +32,13 @@ def scan(repo_path: str) -> None:
         all_nodes.extend(nodes)
         all_edges.extend(edges)
     print(f"\n{len(all_nodes)} nodes, {len(all_edges)} edges (tiers 0-2, no LLM)")
+
+    result = assemble_graph(all_nodes, all_edges)
+    print(
+        f"assembled graph: {result.graph.number_of_nodes()} nodes, "
+        f"{result.graph.number_of_edges()} edges, "
+        f"{len(result.dropped_edges)} edges dropped (no matching node)"
+    )
 
 
 def main() -> None:
