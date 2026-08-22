@@ -23,6 +23,8 @@ dropped rather than guessed at -- that's step B.
 """
 from __future__ import annotations
 
+import os
+
 from archilens.extract.schema import EdgeRecord
 from archilens.graph.assemble import AssemblyResult
 
@@ -57,6 +59,101 @@ def resolve_same_scope_calls(assembly: AssemblyResult) -> AssemblyResult:
 
     for edge in assembly.dropped_edges:
         candidate = _candidate_identity(edge)
+        if (
+            candidate is not None
+            and graph.has_node(candidate)
+            and graph.has_node(edge.src)
+        ):
+            graph.add_edge(edge.src, candidate, evidence=edge)
+        else:
+            still_dropped.append(edge)
+
+    return AssemblyResult(graph=graph, dropped_edges=still_dropped)
+
+
+# --- Identity resolution, step B1: cross-file resolution of bare calls
+# through an import binding, e.g. `write_object(batch)` where
+# `write_object` came from `from ingest.writer import put_object as
+# write_object`. Tier 2 (see the extractor changes in python.py/
+# typescript.py) now records `resolved_module`/`resolved_name` on such
+# calls -- the module string as written in source, and the original
+# (pre-alias) exported name. This pass turns that into a real file, then a
+# real node, using only filesystem-relative math or exact suffix matching
+# against files that were actually scanned -- never a guess.
+#
+# Two cases, by the importing file's language:
+#   - TS/JS relative import (`./ingest/writer`): fully precise. Join the
+#     importing file's directory with the relative path, try real
+#     extensions and index files, and take the first that matches an
+#     actually-scanned file.
+#   - Python absolute dotted import (`ingest.writer`, no leading dot): we
+#     don't have the package root threaded through, so instead suffix-match
+#     the dotted path (as a file path) against scanned files. If more than
+#     one scanned file has that suffix, it's ambiguous -- left unresolved,
+#     never picked arbitrarily.
+#
+# Left unresolved, deliberately: a bare TS/JS module specifier (e.g.
+# "react") -- that's an external package, not something scanned; and a
+# Python relative import with a leading dot (`from .writer import x`) --
+# tree-sitter's exact shape for that case hasn't been checked against, so
+# it's not handled rather than handled speculatively.
+
+_TS_EXTS = (".ts", ".tsx", ".js", ".jsx")
+_PY_EXT = ".py"
+
+
+def _resolve_relative_module_file(
+    importing_file: str, module: str, node_files: set[str]
+) -> str | None:
+    base = os.path.join(os.path.dirname(importing_file), module)
+    candidates = [base + ext for ext in _TS_EXTS]
+    candidates += [os.path.join(base, "index" + ext) for ext in _TS_EXTS]
+
+    normalized_node_files = {os.path.normpath(f): f for f in node_files}
+    for candidate in candidates:
+        original = normalized_node_files.get(os.path.normpath(candidate))
+        if original is not None:
+            return original
+    return None
+
+
+def _resolve_dotted_module_suffix(module: str, node_files: set[str]) -> str | None:
+    suffix = os.path.normpath(os.path.join(*module.split(".")) + ".py")
+    matches = {f for f in node_files if os.path.normpath(f).endswith(suffix)}
+    if len(matches) == 1:
+        return next(iter(matches))
+    return None
+
+
+def _cross_file_candidate_identity(edge: EdgeRecord, node_files: set[str]) -> str | None:
+    if edge.tier != 2:
+        return None
+    module = edge.attrs.get("resolved_module")
+    name = edge.attrs.get("resolved_name")
+    if module is None or name is None:
+        return None
+
+    if edge.file.endswith(_TS_EXTS):
+        if not module.startswith("."):
+            return None  # bare specifier -- external package, never scanned
+        target_file = _resolve_relative_module_file(edge.file, module, node_files)
+    elif edge.file.endswith(_PY_EXT):
+        if module.startswith("."):
+            return None  # leading-dot relative import -- not handled here
+        target_file = _resolve_dotted_module_suffix(module, node_files)
+    else:
+        return None
+
+    return f"{target_file}:{name}" if target_file is not None else None
+
+
+def resolve_cross_file_calls(assembly: AssemblyResult) -> AssemblyResult:
+    graph = assembly.graph
+    node_files = {ev.file for _, data in graph.nodes(data=True) for ev in data["evidence"]}
+
+    still_dropped: list[EdgeRecord] = []
+    for edge in assembly.dropped_edges:
+        candidate = _cross_file_candidate_identity(edge, node_files)
         if (
             candidate is not None
             and graph.has_node(candidate)

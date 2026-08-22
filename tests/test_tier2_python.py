@@ -53,6 +53,11 @@ def test_call_edges_carry_callee_chain_as_a_list():
     write_call = next(e for e in calls if e.attrs["callee_chain"] == ["write_object"])
     assert write_call.attrs["likely_import_alias"] is True  # bound by the `as write_object` alias
     assert write_call.src == f"{write_call.file}:Handler.process"
+    # bare call of a `from module import name as alias` binding -- resolvable cross-file
+    assert write_call.attrs["resolved_module"] == "ingest.writer"
+    assert write_call.attrs["resolved_name"] == "put_object"
+
+    assert "resolved_module" not in boto_call.attrs  # whole-module import + attr access, not resolved
 
     self_call = next(e for e in calls if e.attrs["callee_chain"] == ["self", "validate"])
     assert self_call.attrs["likely_import_alias"] is False  # "self" is not an import

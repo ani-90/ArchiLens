@@ -100,7 +100,10 @@ def parse_typescript_ast(repo_path: str | Path) -> tuple[list[EvidenceRecord], l
             continue
 
         file_str = str(ts_file)
-        import_table: dict[str, str] = {}
+        # alias -> {"module": import source string, "name": original
+        # exported name, or None when it can't be resolved to a single
+        # exported name (namespace import, default import)}.
+        import_table: dict[str, dict[str, str | None]] = {}
 
         def scope_identity(scope_stack: list[str]) -> str:
             return f"{file_str}:{'.'.join(scope_stack)}" if scope_stack else file_str
@@ -136,16 +139,19 @@ def parse_typescript_ast(repo_path: str | Path) -> tuple[list[EvidenceRecord], l
             names: list[str] = []
             for child in clause.children:
                 if child.type == "identifier":
-                    # Default import: `import Foo from "x"`.
+                    # Default import: `import Foo from "x"`. There's no
+                    # single exported name to look up cross-file (tier2
+                    # doesn't track `export default` under a fixed
+                    # identity), so this stays unresolvable -- name=None.
                     local_name = _text(child, source)
                     names.append("default")
-                    import_table[local_name] = module
+                    import_table[local_name] = {"module": module, "name": None}
                 elif child.type == "namespace_import":
                     # `import * as boto3 from "x"` -- last child is the bound identifier.
                     ident = child.children[-1]
                     local_name = _text(ident, source)
                     names.append("*")
-                    import_table[local_name] = module
+                    import_table[local_name] = {"module": module, "name": None}
                 elif child.type == "named_imports":
                     for spec in child.children:
                         if spec.type != "import_specifier":
@@ -155,7 +161,7 @@ def parse_typescript_ast(repo_path: str | Path) -> tuple[list[EvidenceRecord], l
                         name = _text(name_node, source) if name_node is not None else ""
                         alias_name = _text(alias_node, source) if alias_node is not None else name
                         names.append(name)
-                        import_table[alias_name] = module
+                        import_table[alias_name] = {"module": module, "name": name}
 
             emit_import(src_identity, module, names, raw, line)
 
@@ -166,7 +172,17 @@ def parse_typescript_ast(repo_path: str | Path) -> tuple[list[EvidenceRecord], l
             chain = _flatten_callee(func, source)
             if not chain:
                 return
-            likely_alias = chain[0] in import_table
+            import_entry = import_table.get(chain[0])
+            likely_alias = import_entry is not None
+            attrs = {"callee_chain": chain, "likely_import_alias": likely_alias}
+            # Only a bare call of a named-import binding is unambiguous
+            # enough to resolve cross-file -- namespace/default imports
+            # (import_entry["name"] is None) followed by attribute access
+            # could be a property on the returned object, not a module
+            # path, so they're left unresolved.
+            if likely_alias and len(chain) == 1 and import_entry["name"] is not None:
+                attrs["resolved_module"] = import_entry["module"]
+                attrs["resolved_name"] = import_entry["name"]
             edges.append(
                 EdgeRecord(
                     src=scope_identity(scope_stack),
@@ -175,7 +191,7 @@ def parse_typescript_ast(repo_path: str | Path) -> tuple[list[EvidenceRecord], l
                     line=_line(node),
                     tier=TIER,
                     confidence=CONFIDENCE,
-                    attrs={"callee_chain": chain, "likely_import_alias": likely_alias},
+                    attrs=attrs,
                 )
             )
 

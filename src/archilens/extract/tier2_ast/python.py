@@ -81,7 +81,11 @@ def parse_python_ast(repo_path: str | Path) -> tuple[list[EvidenceRecord], list[
             continue
 
         file_str = str(py_file)
-        import_table: dict[str, str] = {}
+        # alias -> {"module": dotted module path, "name": original imported
+        # name, or None for a whole-module import like `import x as y`}.
+        # Kept separate (not concatenated) so a call resolving through this
+        # table can tell "which file" apart from "which name in that file".
+        import_table: dict[str, dict[str, str | None]] = {}
 
         def scope_identity(scope_stack: list[str]) -> str:
             return f"{file_str}:{'.'.join(scope_stack)}" if scope_stack else file_str
@@ -95,14 +99,14 @@ def parse_python_ast(repo_path: str | Path) -> tuple[list[EvidenceRecord], list[
                 for child in node.children:
                     if child.type == "dotted_name":
                         module = _text(child, source)
-                        import_table[module.split(".")[0]] = module
+                        import_table[module.split(".")[0]] = {"module": module, "name": None}
                         emit_import(src_identity, module, [], raw, line)
                     elif child.type == "aliased_import":
                         dotted = child.child_by_field_name("name")
                         alias = child.child_by_field_name("alias")
                         module = _text(dotted, source) if dotted is not None else ""
                         alias_name = _text(alias, source) if alias is not None else module
-                        import_table[alias_name] = module
+                        import_table[alias_name] = {"module": module, "name": None}
                         emit_import(src_identity, module, [], raw, line)
             else:  # import_from_statement
                 module_node = node.child_by_field_name("module_name")
@@ -114,14 +118,14 @@ def parse_python_ast(repo_path: str | Path) -> tuple[list[EvidenceRecord], list[
                     if child.type == "dotted_name":
                         name = _text(child, source)
                         names.append(name)
-                        import_table[name] = f"{module}.{name}"
+                        import_table[name] = {"module": module, "name": name}
                     elif child.type == "aliased_import":
                         dotted = child.child_by_field_name("name")
                         alias = child.child_by_field_name("alias")
                         name = _text(dotted, source) if dotted is not None else ""
                         alias_name = _text(alias, source) if alias is not None else name
                         names.append(name)
-                        import_table[alias_name] = f"{module}.{name}"
+                        import_table[alias_name] = {"module": module, "name": name}
                     elif child.type == "wildcard_import":
                         names.append("*")
                 emit_import(src_identity, module, names, raw, line)
@@ -146,7 +150,17 @@ def parse_python_ast(repo_path: str | Path) -> tuple[list[EvidenceRecord], list[
             chain = _flatten_callee(func, source)
             if not chain:
                 return
-            likely_alias = chain[0] in import_table
+            import_entry = import_table.get(chain[0])
+            likely_alias = import_entry is not None
+            attrs = {"callee_chain": chain, "likely_import_alias": likely_alias}
+            # Only a bare call of a `from module import name [as alias]`
+            # binding is unambiguous enough to resolve cross-file -- a
+            # whole-module import (import_entry["name"] is None) followed by
+            # further attribute access could be an attribute on the
+            # returned object, not a module path, so it's left unresolved.
+            if likely_alias and len(chain) == 1 and import_entry["name"] is not None:
+                attrs["resolved_module"] = import_entry["module"]
+                attrs["resolved_name"] = import_entry["name"]
             edges.append(
                 EdgeRecord(
                     src=scope_identity(scope_stack),
@@ -155,7 +169,7 @@ def parse_python_ast(repo_path: str | Path) -> tuple[list[EvidenceRecord], list[
                     line=_line(node),
                     tier=TIER,
                     confidence=CONFIDENCE,
-                    attrs={"callee_chain": chain, "likely_import_alias": likely_alias},
+                    attrs=attrs,
                 )
             )
 
