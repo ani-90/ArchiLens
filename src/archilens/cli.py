@@ -9,6 +9,7 @@ from archilens.extract.tier1_rules.engine import parse_tier1_rules
 from archilens.extract.tier2_ast.python import parse_python_ast
 from archilens.extract.tier2_ast.typescript import parse_typescript_ast
 from archilens.graph.assemble import assemble_graph
+from archilens.graph.resolve import resolve_same_scope_calls
 
 EXTRACTORS = [
     ("terraform", parse_terraform),
@@ -34,10 +35,13 @@ def scan(repo_path: str) -> None:
     print(f"\n{len(all_nodes)} nodes, {len(all_edges)} edges (tiers 0-2, no LLM)")
 
     result = assemble_graph(all_nodes, all_edges)
+    before_dropped = len(result.dropped_edges)
+    result = resolve_same_scope_calls(result)
     print(
         f"assembled graph: {result.graph.number_of_nodes()} nodes, "
         f"{result.graph.number_of_edges()} edges, "
-        f"{len(result.dropped_edges)} edges dropped (no matching node)"
+        f"{len(result.dropped_edges)} edges dropped (no matching node), "
+        f"{before_dropped - len(result.dropped_edges)} resolved via same-scope calls"
     )
 
 
