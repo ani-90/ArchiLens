@@ -119,6 +119,19 @@ def test_skips_git_and_node_modules_dirs(tmp_path):
     assert nodes == []
 
 
+def test_skips_venv_dirs(tmp_path):
+    """Regression: a docker-compose.yaml bundled inside a third-party pip
+    package under .venv must never be scanned as if it were the repo's own
+    infrastructure -- see e.g. langsmith's cli/docker-compose.yaml."""
+    for d in ("venv", ".venv", "vendor", "__pycache__", "dist", "build"):
+        (tmp_path / d).mkdir()
+        (tmp_path / d / "docker-compose.yml").write_text(
+            "services:\n  bundled:\n    image: alpine\n"
+        )
+    nodes, _ = parse_compose(tmp_path)
+    assert nodes == []
+
+
 def test_service_with_null_config_defaults_to_service_kind(tmp_path):
     (tmp_path / "docker-compose.yml").write_text("services:\n  empty:\n")
     nodes, _ = parse_compose(tmp_path)

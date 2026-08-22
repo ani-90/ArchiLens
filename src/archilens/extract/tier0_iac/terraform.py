@@ -12,6 +12,7 @@ from pathlib import Path
 
 import hcl2
 
+from archilens.extract import COMMON_SKIP_DIRS
 from archilens.extract.schema import EdgeRecord, EvidenceRecord
 
 TIER = 0
@@ -42,7 +43,7 @@ KIND_MAP: dict[str, tuple[str, str]] = {
     "aws_msk_cluster": ("queue", "msk"),
 }
 
-_SKIP_DIRS = {".terraform", ".git", "node_modules"}
+_SKIP_DIRS = COMMON_SKIP_DIRS | {".terraform"}
 
 # python-hcl2 renders interpolations as "${type.name.attr}" strings even
 # where HCL2 syntax itself has dropped the ${} wrapper for top-level refs.

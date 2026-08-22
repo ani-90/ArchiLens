@@ -14,22 +14,14 @@ from tree_sitter import Language, Node, Parser, Tree
 import tree_sitter_python as tspython
 
 from archilens.cache import ExtractionCache
+from archilens.extract import COMMON_SKIP_DIRS
 from archilens.extract.schema import EdgeRecord, EvidenceRecord
 
 TIER = 2
 CONFIDENCE = 1.0
 _EXTRACTOR_NAME = "python"
 
-_SKIP_DIRS = {
-    ".git",
-    "node_modules",
-    "vendor",
-    "venv",
-    ".venv",
-    "__pycache__",
-    "dist",
-    "build",
-}
+_SKIP_DIRS = COMMON_SKIP_DIRS
 
 _LANGUAGE = Language(tspython.language())
 

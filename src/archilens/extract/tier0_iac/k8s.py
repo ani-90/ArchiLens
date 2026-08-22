@@ -11,6 +11,7 @@ from pathlib import Path
 
 import yaml
 
+from archilens.extract import COMMON_SKIP_DIRS
 from archilens.extract.schema import EdgeRecord, EvidenceRecord
 
 TIER = 0
@@ -22,7 +23,7 @@ DATASTORE_KINDS = {"PersistentVolumeClaim"}
 CONFIG_KINDS = {"ConfigMap", "Secret"}
 
 _K8S_MANIFEST_RE = re.compile(r"\.ya?ml$", re.IGNORECASE)
-_SKIP_DIRS = {".git", "node_modules", "charts", "templates"}  # skip likely Helm template dirs
+_SKIP_DIRS = COMMON_SKIP_DIRS | {"charts", "templates"}  # + likely Helm template dirs
 _DOC_SEP = re.compile(r"^---[ \t]*\n", re.MULTILINE)
 
 

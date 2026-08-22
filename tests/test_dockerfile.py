@@ -63,6 +63,14 @@ def test_skips_git_and_node_modules_dirs(tmp_path):
     assert nodes == []
 
 
+def test_skips_venv_dirs(tmp_path):
+    for d in ("venv", ".venv", "vendor", "__pycache__", "dist", "build"):
+        (tmp_path / d).mkdir()
+        (tmp_path / d / "Dockerfile").write_text("FROM alpine\n")
+    nodes, _ = parse_dockerfile(tmp_path)
+    assert nodes == []
+
+
 def test_unreadable_file_does_not_crash_scan(tmp_path):
     # A directory that merely looks like a Dockerfile by name but can't be
     # read as text (binary) should be skipped, not raise.

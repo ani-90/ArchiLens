@@ -14,22 +14,14 @@ from tree_sitter import Language, Node, Parser, Tree
 import tree_sitter_typescript as tsts
 
 from archilens.cache import ExtractionCache
+from archilens.extract import COMMON_SKIP_DIRS
 from archilens.extract.schema import EdgeRecord, EvidenceRecord
 
 TIER = 2
 CONFIDENCE = 1.0
 _EXTRACTOR_NAME = "typescript"
 
-_SKIP_DIRS = {
-    ".git",
-    "node_modules",
-    "vendor",
-    "venv",
-    ".venv",
-    "__pycache__",
-    "dist",
-    "build",
-}
+_SKIP_DIRS = COMMON_SKIP_DIRS
 
 # .tsx uses a distinct grammar from .ts (JSX syntax support) even though
 # both are otherwise TypeScript -- tree-sitter-typescript ships them as two

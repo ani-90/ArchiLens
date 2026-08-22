@@ -10,6 +10,7 @@ from pathlib import Path
 
 import yaml
 
+from archilens.extract import COMMON_SKIP_DIRS
 from archilens.extract.schema import EdgeRecord, EvidenceRecord
 
 TIER = 0
@@ -39,7 +40,7 @@ IMAGE_KIND_MAP = [
 ]
 
 _COMPOSE_FILE_RE = re.compile(r"^docker-compose.*\.ya?ml$|^compose\.ya?ml$", re.IGNORECASE)
-_SKIP_DIRS = {".git", "node_modules"}
+_SKIP_DIRS = COMMON_SKIP_DIRS
 
 
 def _kind_and_subtype_for_image(image: str | None) -> tuple[str, str | None]:

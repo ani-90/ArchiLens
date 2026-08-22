@@ -146,6 +146,16 @@ def test_skips_git_and_node_modules_dirs(tmp_path):
     assert nodes == []
 
 
+def test_skips_venv_dirs(tmp_path):
+    for d in ("venv", ".venv", "vendor", "__pycache__", "dist", "build"):
+        (tmp_path / d).mkdir()
+        (tmp_path / d / "cfg.yaml").write_text(
+            "apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: bundled\n"
+        )
+    nodes, _ = parse_k8s(tmp_path)
+    assert nodes == []
+
+
 def test_malformed_document_in_multidoc_file_is_skipped_not_fatal(tmp_path):
     raw = (
         "apiVersion: v1\n"

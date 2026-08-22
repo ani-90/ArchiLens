@@ -11,6 +11,7 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+from archilens.extract import COMMON_SKIP_DIRS
 from archilens.extract.schema import EdgeRecord, EvidenceRecord
 from archilens.extract.tier0_iac.compose import _kind_and_subtype_for_image
 
@@ -18,7 +19,7 @@ TIER = 0
 CONFIDENCE = 1.0
 
 _DOCKERFILE_RE = re.compile(r"^dockerfile(\..+)?$|.+\.dockerfile$", re.IGNORECASE)
-_SKIP_DIRS = {".git", "node_modules"}
+_SKIP_DIRS = COMMON_SKIP_DIRS
 
 _FROM_RE = re.compile(r"^FROM\s+(\S+)(?:\s+AS\s+(\S+))?\s*$", re.IGNORECASE)
 _EXPOSE_RE = re.compile(r"^EXPOSE\s+(.+)$", re.IGNORECASE)

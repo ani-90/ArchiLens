@@ -19,6 +19,7 @@ from pathlib import Path
 import yaml
 
 from archilens.cache import ExtractionCache
+from archilens.extract import COMMON_SKIP_DIRS
 from archilens.extract.schema import EdgeRecord, EvidenceRecord
 
 TIER = 1
@@ -26,16 +27,7 @@ _EXTRACTOR_NAME = "tier1"
 
 _RULES_DIR = Path(__file__).parent / "rules"
 
-_SKIP_DIRS = {
-    ".git",
-    "node_modules",
-    "vendor",
-    "venv",
-    ".venv",
-    "__pycache__",
-    "dist",
-    "build",
-}
+_SKIP_DIRS = COMMON_SKIP_DIRS
 
 # Extension -> language tag used to key rule patterns. "javascript" covers
 # both JS and TS -- SDK client-construction syntax doesn't differ between

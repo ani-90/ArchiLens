@@ -77,6 +77,16 @@ def test_skips_dot_terraform_and_node_modules_dirs(tmp_path):
     assert nodes == []
 
 
+def test_skips_venv_dirs(tmp_path):
+    for d in ("venv", ".venv", "vendor", "__pycache__", "dist", "build"):
+        (tmp_path / d).mkdir()
+        (tmp_path / d / "bundled.tf").write_text(
+            'resource "aws_s3_bucket" "bundled" {\n  bucket = "bundled"\n}\n'
+        )
+    nodes, _ = parse_terraform(tmp_path)
+    assert nodes == []
+
+
 def test_file_with_no_resource_blocks_is_a_noop(tmp_path):
     (tmp_path / "vars.tf").write_text('variable "region" {\n  default = "us-east-1"\n}\n')
     nodes, edges = parse_terraform(tmp_path)
