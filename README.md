@@ -2,7 +2,7 @@
 
 An MCP server that generates verified data flow diagrams from source code — every component and arrow traceable to a line of code, laid out deterministically.
 
-ArchiLens reads a repo and produces an evidence-cited architecture graph: no node or edge is asserted unless it resolves to a real `file:line`. The full design (8-stage pipeline, 5 invariants, 13-phase build order) is described in the project spec; **this README documents only what is actually implemented so far.**
+ArchiLens reads a repo and produces an evidence-cited architecture graph: no node or edge is asserted unless it resolves to a real `file:line`.  **this README documents only what is actually implemented so far.**
 
 ## Status
 
