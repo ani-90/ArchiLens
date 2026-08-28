@@ -37,3 +37,4 @@ So: **5 more phases after the current one (5→6→7→8→9→10)** stand betwe
 
 - At the start of a session, read this status section and just proceed — don't ask the user where the project stands.
 - After any commit that finishes or advances a phase, update the "Current status" section above (and the date) in the same turn.
+- Also update the published "ArchiLens, explained" interview-FAQ artifact whenever a phase completes: https://claude.ai/code/artifact/85d1a127-451e-4688-ab14-f9f8f5c0946b — update the pipeline strip, status pills, footer phase count, and add/revise Q&A sections covering the newly completed work.
