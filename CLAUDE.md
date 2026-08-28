@@ -17,6 +17,22 @@ Phases 0-4 complete and merged to `main` (clean tree, 164 tests passing):
 
 Not started: slicer, IR schema + verifier, layout/draw.io rendering, abstraction LLM pass, MCP server surface, tier 3 LLM extraction, eval harness.
 
+## V1 public release target: through Phase 10
+
+Decided 2026-08-28. Phase 10 (full MCP surface) is the release bar, not earlier:
+- Phases 0-6 only produce graphs/slices — no usable output, no MCP server. Not a product.
+- Phase 7 (layout + draw.io renderer) gives a real output file, but it's raw structural nodes — unreadable as an architecture diagram.
+- Phase 8 (abstraction LLM pass) is the first point where output looks like an actual architecture diagram (grouped/named components, not one box per function).
+- Phase 9 (`trace_edge`) makes the evidence-cited claim actually checkable by a user — click an arrow, see why it's there.
+- Phase 10 (full MCP surface: `scan`, `generate_diagram`, `trace_edge`, sampling for zero-API-key installs) is the actual product boundary — before this it's a CLI script, after this it's an installable MCP server.
+
+**Explicitly deferred to v1.1+:**
+- Phase 11 (tier 3 LLM extraction) — v1 ships with tier0-2 coverage (Python/TS/IaC); other languages just extract less, not blocking.
+- Phase 12 (eval harness) — needed before making public hallucination-rate claims in marketing, but not a runtime dependency; do this right after v1 ships.
+- Phase 13 (CI gating, `diff_against_commit`, freeform mode) — genuine v2 features.
+
+So: **5 more phases after the current one (5→6→7→8→9→10)** stand between here and a public v1.
+
 ## Working agreement
 
 - At the start of a session, read this status section and just proceed — don't ask the user where the project stands.
