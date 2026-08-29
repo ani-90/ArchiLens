@@ -12,7 +12,7 @@ from pathlib import Path
 
 import hcl2
 
-from archilens.extract import COMMON_SKIP_DIRS
+from archilens.extract import COMMON_SKIP_DIRS, iter_files
 from archilens.extract.schema import EdgeRecord, EvidenceRecord
 
 TIER = 0
@@ -89,10 +89,9 @@ def _iter_refs(value: object):
 
 
 def _iter_tf_files(repo_path: Path):
-    for tf_file in repo_path.rglob("*.tf"):
-        if any(part in _SKIP_DIRS for part in tf_file.parts):
-            continue
-        yield tf_file
+    for path in iter_files(repo_path, _SKIP_DIRS):
+        if path.suffix == ".tf":
+            yield path
 
 
 def parse_terraform(repo_path: str | Path) -> tuple[list[EvidenceRecord], list[EdgeRecord]]:

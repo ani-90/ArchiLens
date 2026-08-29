@@ -11,7 +11,7 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-from archilens.extract import COMMON_SKIP_DIRS
+from archilens.extract import COMMON_SKIP_DIRS, iter_files
 from archilens.extract.schema import EdgeRecord, EvidenceRecord
 from archilens.extract.tier0_iac.compose import _kind_and_subtype_for_image
 
@@ -28,11 +28,7 @@ _COPY_FROM_RE = re.compile(r"--from=(\S+)")
 
 
 def _iter_dockerfiles(repo_path: Path):
-    for path in repo_path.rglob("*"):
-        if not path.is_file():
-            continue
-        if any(part in _SKIP_DIRS for part in path.parts):
-            continue
+    for path in iter_files(repo_path, _SKIP_DIRS):
         if _DOCKERFILE_RE.match(path.name):
             yield path
 

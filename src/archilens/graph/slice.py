@@ -37,6 +37,7 @@ from archilens.graph.assemble import AssemblyResult
 MAX_HOP_BUDGET = 3.0
 _STRONG_RELATIONS = {"routes_to", "depends_on", "build_context_contains"}
 _AMBIGUITY_TOP_N = 10
+_AMBIGUITY_SCORE_RATIO = 0.5
 
 _TOKEN_RE = re.compile(r"[a-z0-9]+")
 
@@ -134,18 +135,21 @@ def _detect_ambiguity(
     graph: nx.MultiDiGraph, relevant_ranked: list[tuple[str, float]]
 ) -> list[SliceCandidate] | None:
     """Group the top relevant candidates by which weakly-connected component
-    of the graph they fall in. If they span >=2 components, the query is
-    ambiguous between distinct subsystems rather than pointing at one clear
-    target -- return candidates instead of guessing which one was meant.
+    of the graph they fall in. If they span >=2 components with comparably
+    strong scores, the query is ambiguous between distinct subsystems rather
+    than pointing at one clear target -- return candidates instead of
+    guessing which one was meant.
 
-    Deliberately no score-magnitude/ratio comparison between clusters: BM25
-    scores from _relevant_ranked can legitimately be 0 or negative (see
-    _relevant_ranked's docstring), so a magnitude-ratio threshold would be
-    comparing numbers whose sign and scale aren't meaningful on their own.
-    Restricting to the top-N *relevant* (token-overlapping) candidates is
-    itself the "comparably strong" filter -- a component whose best match
-    doesn't even make it into the top N token-relevant hits isn't a serious
-    competing interpretation."""
+    The score-ratio dominance check only applies when the top cluster's
+    score is meaningfully positive. On a real, healthily-sized corpus BM25
+    scores are ordinary positive numbers and the ratio is a real "is the top
+    match a clear winner" signal. But rank_bm25's IDF formula legitimately
+    produces a score of exactly 0, or negative, on a small/degenerate corpus
+    (see _relevant_ranked's docstring) -- there, magnitude comparison isn't
+    meaningful, so any node sharing the top cluster's token-overlap rank
+    within the top N is treated as a live competing interpretation rather
+    than silently dismissed by a ratio comparison that has no real signal
+    to compare."""
     top_candidates = relevant_ranked[:_AMBIGUITY_TOP_N]
     if len(top_candidates) < 2:
         return None
@@ -162,6 +166,11 @@ def _detect_ambiguity(
         clusters.setdefault(comp, []).append((node_id, score))
 
     if len(clusters) < 2:
+        return None
+
+    cluster_best_scores = sorted((max(s for _, s in items) for items in clusters.values()), reverse=True)
+    top_score, second_score = cluster_best_scores[0], cluster_best_scores[1]
+    if top_score > 0 and second_score < _AMBIGUITY_SCORE_RATIO * top_score:
         return None
 
     candidates = []

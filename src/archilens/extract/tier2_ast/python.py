@@ -14,7 +14,7 @@ from tree_sitter import Language, Node, Parser, Tree
 import tree_sitter_python as tspython
 
 from archilens.cache import ExtractionCache
-from archilens.extract import COMMON_SKIP_DIRS
+from archilens.extract import COMMON_SKIP_DIRS, iter_files
 from archilens.extract.schema import EdgeRecord, EvidenceRecord
 
 TIER = 2
@@ -27,10 +27,9 @@ _LANGUAGE = Language(tspython.language())
 
 
 def _iter_py_files(repo_path: Path):
-    for path in repo_path.rglob("*.py"):
-        if any(part in _SKIP_DIRS for part in path.parts):
-            continue
-        yield path
+    for path in iter_files(repo_path, _SKIP_DIRS):
+        if path.suffix == ".py":
+            yield path
 
 
 def _text(node: Node, source: bytes) -> str:

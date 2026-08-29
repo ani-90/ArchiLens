@@ -7,6 +7,12 @@ A narrower copy is exactly what let a third-party package's own bundled
 docker-compose.yaml inside .venv get scanned as if it were the repo's own
 infrastructure.
 """
+from __future__ import annotations
+
+import os
+from pathlib import Path
+from typing import Iterator
+
 COMMON_SKIP_DIRS = frozenset(
     {
         ".git",
@@ -19,3 +25,25 @@ COMMON_SKIP_DIRS = frozenset(
         "build",
     }
 )
+
+
+def iter_files(repo_path: Path, skip_dirs: frozenset[str]) -> Iterator[Path]:
+    """Walk repo_path yielding every file not under a skip_dirs directory,
+    pruning the walk itself rather than filtering after the fact.
+
+    Path.rglob() has no way to skip a directory before descending into it --
+    every extractor that used `for p in repo_path.rglob(...): if any(part in
+    skip_dirs...): continue` still paid the full filesystem-enumeration cost
+    of walking into .venv/node_modules/etc. before discarding what it found
+    there. A real .venv with a couple of heavy packages installed can hold
+    tens of thousands of files; with every extractor across every tier doing
+    its own unpruned rglob() over the whole repo, that cost is paid
+    repeatedly, once per extractor, and was slow enough in practice to make
+    a full scan of an ordinary small repo take minutes instead of seconds.
+    os.walk()'s dirnames list can be pruned in place *before* it recurses,
+    which is the fix.
+    """
+    for dirpath, dirnames, filenames in os.walk(repo_path):
+        dirnames[:] = [d for d in dirnames if d not in skip_dirs]
+        for filename in filenames:
+            yield Path(dirpath) / filename

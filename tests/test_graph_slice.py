@@ -223,6 +223,31 @@ def test_monorepo_slicing_does_not_bleed_across_disconnected_services():
     assert "b_private" not in result.graph.nodes
 
 
+def test_dominant_match_is_not_flagged_ambiguous_by_weaker_unrelated_matches():
+    # a healthy-sized corpus (not a 2-3 node synthetic case) so BM25 scores
+    # are ordinary positive numbers, not the degenerate 0/negative case a
+    # tiny corpus produces. One node matches the full query strongly; a
+    # node in a disconnected component only shares one of three query
+    # tokens and should not be enough to force an ambiguous result.
+    nodes = [
+        _node("strong_match", attrs={"name": "unique_target_alpha_beta"}),
+        _node("strong_neighbor"),
+        _node("weak_partial_match", attrs={"name": "alpha_only"}),
+        _node("weak_neighbor"),
+    ]
+    filler = [_node(f"filler{i}", attrs={"name": f"unrelated_thing_{i}"}) for i in range(8)]
+    nodes += filler
+
+    edges = [_edge("strong_match", "strong_neighbor"), _edge("weak_partial_match", "weak_neighbor")]
+    assembly = assemble_graph(nodes, edges)
+
+    result = slice_graph(assembly, "unique_target_alpha_beta", max_nodes=60)
+
+    assert result.ambiguous is False
+    assert result.graph is not None
+    assert result.seed_ids == ["strong_match"]
+
+
 def test_no_match_returns_no_graph_rather_than_guessing():
     nodes = [_node("a", attrs={"name": "alpha"})]
     assembly = assemble_graph(nodes, [])

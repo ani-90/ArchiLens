@@ -6,14 +6,14 @@ MCP server that reads a repo and produces an evidence-cited (`file:line`-traceab
 
 **Last updated:** 2026-08-29
 
-Phases 0-5 complete (not yet committed/pushed — implementation done, tests passing, ready to commit):
+Phases 0-5 complete and merged to `main` (175 tests passing):
 - Phase 0: scaffold
 - Phase 1: Tier 0 IaC extractors (Terraform, docker-compose, Dockerfile, k8s)
 - Phase 2: Tier 1 YAML regex rule engine
 - Phase 3: Tier 2 tree-sitter AST extractors (Python, TypeScript)
 - Phase 4: graph assembly (NetworkX) + identity resolution + SHA-256 extraction cache
-- Phase 5: slicer (`src/archilens/graph/slice.py`) — BM25 seed (token-overlap relevance + BM25 ranking, robust to rank_bm25's degenerate zero/negative IDF on small corpora) + weighted bounded-Dijkstra k-hop expand (`MAX_HOP_BUDGET=3`, infra/tier-0 nodes admitted regardless of cost but don't teleport their neighbors) + 60-node cap (seeds/infra protected, deterministic drop order) + ambiguity detection via weakly-connected-components clustering of top BM25 matches. New `slice` CLI subcommand. Added `rank-bm25` dependency. 174 tests passing (164 existing + 10 new).
-- Also fixed in this pass: added missing `src/archilens/__main__.py` so `python -m archilens ...` (the exact form README documents) actually works — was broken since before phase 5, just never exercised.
+- Phase 5: slicer (`src/archilens/graph/slice.py`) — BM25 seed (token-overlap relevance + BM25 ranking, robust to rank_bm25's degenerate zero/negative IDF on small corpora) + weighted bounded-Dijkstra k-hop expand (`MAX_HOP_BUDGET=3`, infra/tier-0 nodes admitted regardless of cost but don't teleport their neighbors) + 60-node cap (seeds/infra protected, deterministic drop order) + ambiguity detection via weakly-connected-components clustering of top BM25 matches, with a score-ratio dominance check (only when scores are meaningfully positive) so a clear winner isn't falsely flagged ambiguous by weak unrelated matches. New `slice` CLI subcommand. Added `rank-bm25` dependency.
+- Also fixed: added missing `src/archilens/__main__.py` so `python -m archilens ...` (the exact form README documents) actually works. And a real perf bug found by testing against an actual external repo (`Knowledge-News-App`, a Flutter + FastAPI app with a 40K-file `.venv`): every extractor across every tier used `Path.rglob(...)` then filtered skip-dirs *after* enumeration, so `rglob` still fully walked into `.venv`/`node_modules`/etc. before discarding results — a full scan took 3+ minutes and had to be killed. Fixed with a shared `iter_files()` helper (`src/archilens/extract/__init__.py`) using `os.walk()` with in-place `dirnames` pruning, so skipped directories are never descended into at all. Same repo now scans in ~2.4s.
 
 **Next up:** Phase 6 — IR schema + verifier.
 

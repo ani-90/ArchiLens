@@ -11,7 +11,7 @@ from pathlib import Path
 
 import yaml
 
-from archilens.extract import COMMON_SKIP_DIRS
+from archilens.extract import COMMON_SKIP_DIRS, iter_files
 from archilens.extract.schema import EdgeRecord, EvidenceRecord
 
 TIER = 0
@@ -42,11 +42,7 @@ def _kind_bucket(k8s_kind: str) -> str:
 
 
 def _iter_manifest_files(repo_path: Path):
-    for path in repo_path.rglob("*"):
-        if not path.is_file():
-            continue
-        if any(part in _SKIP_DIRS for part in path.parts):
-            continue
+    for path in iter_files(repo_path, _SKIP_DIRS):
         if _K8S_MANIFEST_RE.search(path.name):
             yield path
 

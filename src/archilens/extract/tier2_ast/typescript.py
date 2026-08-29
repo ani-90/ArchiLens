@@ -14,7 +14,7 @@ from tree_sitter import Language, Node, Parser, Tree
 import tree_sitter_typescript as tsts
 
 from archilens.cache import ExtractionCache
-from archilens.extract import COMMON_SKIP_DIRS
+from archilens.extract import COMMON_SKIP_DIRS, iter_files
 from archilens.extract.schema import EdgeRecord, EvidenceRecord
 
 TIER = 2
@@ -41,11 +41,7 @@ _DEF_NODE_TYPES = {
 
 
 def _iter_ts_files(repo_path: Path):
-    for path in repo_path.rglob("*"):
-        if not path.is_file():
-            continue
-        if any(part in _SKIP_DIRS for part in path.parts):
-            continue
+    for path in iter_files(repo_path, _SKIP_DIRS):
         if path.suffix.lower() in _LANGUAGE_BY_EXT:
             yield path
 

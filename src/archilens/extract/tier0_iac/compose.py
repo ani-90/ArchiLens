@@ -10,7 +10,7 @@ from pathlib import Path
 
 import yaml
 
-from archilens.extract import COMMON_SKIP_DIRS
+from archilens.extract import COMMON_SKIP_DIRS, iter_files
 from archilens.extract.schema import EdgeRecord, EvidenceRecord
 
 TIER = 0
@@ -65,11 +65,7 @@ def _find_service_line(raw: str, service_name: str) -> int | None:
 
 
 def _iter_compose_files(repo_path: Path):
-    for path in repo_path.rglob("*"):
-        if not path.is_file():
-            continue
-        if any(part in _SKIP_DIRS for part in path.parts):
-            continue
+    for path in iter_files(repo_path, _SKIP_DIRS):
         if _COMPOSE_FILE_RE.match(path.name):
             yield path
 

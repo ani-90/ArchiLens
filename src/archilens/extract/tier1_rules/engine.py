@@ -19,7 +19,7 @@ from pathlib import Path
 import yaml
 
 from archilens.cache import ExtractionCache
-from archilens.extract import COMMON_SKIP_DIRS
+from archilens.extract import COMMON_SKIP_DIRS, iter_files
 from archilens.extract.schema import EdgeRecord, EvidenceRecord
 
 TIER = 1
@@ -156,11 +156,7 @@ _STRIPPERS = {
 
 
 def _iter_source_files(repo_path: Path, languages: set[str]):
-    for path in repo_path.rglob("*"):
-        if not path.is_file():
-            continue
-        if any(part in _SKIP_DIRS for part in path.parts):
-            continue
+    for path in iter_files(repo_path, _SKIP_DIRS):
         lang = LANGUAGE_BY_EXT.get(path.suffix.lower())
         if lang in languages:
             yield path, lang
