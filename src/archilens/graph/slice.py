@@ -28,6 +28,7 @@ from __future__ import annotations
 import heapq
 import re
 from dataclasses import dataclass, field
+from pathlib import Path
 
 import networkx as nx
 from rank_bm25 import BM25Okapi
@@ -60,8 +61,22 @@ class SliceResult:
 
 
 def _node_text_blob(identity: str, evidence: list) -> str:
-    parts = [identity]
+    """Deliberately excludes directory ancestry. A node's `identity` is
+    often `{absolute file path}:{qualname}` -- if the full identity were
+    indexed verbatim, every node in a repo checked out under a path like
+    `.../Knowledge-News-App/...` would spuriously share the token "news"
+    with every query mentioning it, since that word came from wherever the
+    repo happens to be cloned on disk, not from any code the node actually
+    represents. Worse, it would make search results depend on the absolute
+    checkout path, which has nothing to do with the commit being scanned.
+    Only the file's own basename (still real signal -- `qdrant.py` is
+    meaningful) and the identity's qualname suffix (the part after the file
+    prefix) are indexed; parent directories are dropped."""
+    parts = []
     for ev in evidence:
+        parts.append(Path(ev.file).name)
+        qualname = identity[len(ev.file) :].lstrip(":") if identity.startswith(ev.file) else identity
+        parts.append(qualname)
         parts.append(ev.kind)
         if ev.subtype:
             parts.append(ev.subtype)

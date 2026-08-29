@@ -248,6 +248,43 @@ def test_dominant_match_is_not_flagged_ambiguous_by_weaker_unrelated_matches():
     assert result.seed_ids == ["strong_match"]
 
 
+def test_parent_directory_names_do_not_leak_into_search_relevance():
+    # A repo checked out under a folder whose name happens to share a word
+    # with the query (e.g. cloned as ".../Knowledge-News-App/...") must not
+    # make every node in the repo spuriously match that word -- only the
+    # file's own basename and qualname are searchable text, not the full
+    # absolute path's directory ancestry.
+    repo_file = "C:\\Users\\dev\\Knowledge-News-App\\app\\config.py"
+    node = _node(
+        f"{repo_file}:Settings",
+        file=repo_file,
+        kind="class",
+        attrs={"name": "Settings", "qualname": "Settings"},
+    )
+    assembly = assemble_graph([node], [])
+
+    result = slice_graph(assembly, "chat about the news", max_nodes=60)
+
+    assert result.graph is None
+    assert result.ambiguous is False
+
+
+def test_file_basename_is_still_searchable():
+    # the fix for the above must not throw out the basename itself --
+    # "qdrant.py" is real, meaningful signal, unlike its parent directories.
+    repo_file = "C:\\Users\\dev\\Knowledge-News-App\\app\\db\\qdrant.py"
+    node = _node(
+        f"{repo_file}:search_similar",
+        file=repo_file,
+        attrs={"name": "search_similar", "qualname": "search_similar"},
+    )
+    assembly = assemble_graph([node], [])
+
+    result = slice_graph(assembly, "qdrant", max_nodes=60)
+
+    assert result.seed_ids == [f"{repo_file}:search_similar"]
+
+
 def test_no_match_returns_no_graph_rather_than_guessing():
     nodes = [_node("a", attrs={"name": "alpha"})]
     assembly = assemble_graph(nodes, [])
