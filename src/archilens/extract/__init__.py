@@ -1,11 +1,22 @@
 """Directories that should never be treated as part of the scanned repo's
-own code/infra: dependency trees, VCS metadata, and build output. Every
-extractor across every tier must skip at least these -- a tier may extend
-this set with its own additional skips (e.g. Terraform's .terraform cache,
-k8s's Helm charts/templates dirs), but must never define a narrower one.
-A narrower copy is exactly what let a third-party package's own bundled
-docker-compose.yaml inside .venv get scanned as if it were the repo's own
-infrastructure.
+own code/infra: dependency trees, VCS metadata, build output, and test
+suites. Every extractor across every tier must skip at least these -- a
+tier may extend this set with its own additional skips (e.g. Terraform's
+.terraform cache, k8s's Helm charts/templates dirs), but must never define
+a narrower one. A narrower copy is exactly what let a third-party package's
+own bundled docker-compose.yaml inside .venv get scanned as if it were the
+repo's own infrastructure.
+
+Test directories are skipped for the same reason as vendor/build output --
+not because they're worthless, but because they aren't architecture. A
+slice query for a widely-shared utility (e.g. one called from twenty
+different test functions) would otherwise get its 60-node budget dominated
+by test scaffolding instead of the actual production-code neighborhood
+being asked about -- confirmed dogfooding this project's own slicer against
+its own repo (see eval/cases.md, "test file exclusion"). This intentionally
+does NOT catch test files that live alongside source with only a naming
+convention (`foo.test.ts`, `test_foo.py` outside a dedicated directory) --
+only directory names, matching every other entry in this set.
 """
 from __future__ import annotations
 
@@ -23,6 +34,11 @@ COMMON_SKIP_DIRS = frozenset(
         "__pycache__",
         "dist",
         "build",
+        "tests",
+        "test",
+        "__tests__",
+        "spec",
+        "specs",
     }
 )
 

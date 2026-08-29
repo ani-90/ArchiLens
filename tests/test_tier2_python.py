@@ -94,6 +94,20 @@ def test_skips_vendor_and_venv_dirs(tmp_path):
     assert edges == []
 
 
+def test_skips_test_dirs(tmp_path):
+    """A repo's own test suite isn't architecture -- excluded the same way
+    as vendor/build output, not because it's worthless but because a
+    widely-shared utility's twenty test callers would otherwise dominate a
+    slice query's node budget instead of the real production-code
+    neighborhood. See eval/cases.md, "test file exclusion"."""
+    for d in ("tests", "test", "__tests__", "spec", "specs"):
+        (tmp_path / d).mkdir()
+        (tmp_path / d / "test_x.py").write_text("def test_thing():\n    pass\n")
+    nodes, edges = parse_python_ast(tmp_path)
+    assert nodes == []
+    assert edges == []
+
+
 def test_unreadable_file_does_not_crash_scan(tmp_path):
     (tmp_path / "broken.py").write_bytes(b"\xff\xfeimport boto3\xff")
     nodes, edges = parse_python_ast(tmp_path)

@@ -6,7 +6,7 @@ MCP server that reads a repo and produces an evidence-cited (`file:line`-traceab
 
 **Last updated:** 2026-08-29
 
-Phases 0-5 complete and merged to `main` (177 tests passing):
+Phases 0-5 complete and merged to `main` (178 tests passing):
 - Phase 0: scaffold
 - Phase 1: Tier 0 IaC extractors (Terraform, docker-compose, Dockerfile, k8s)
 - Phase 2: Tier 1 YAML regex rule engine
@@ -18,6 +18,7 @@ Phases 0-5 complete and merged to `main` (177 tests passing):
   - Perf: every extractor used `Path.rglob(...)` then filtered skip-dirs *after* enumeration, so it still fully walked `.venv` (40K files) before discarding results — 3+ min scan, had to be killed. Fixed with a shared `iter_files()` helper (`src/archilens/extract/__init__.py`) using `os.walk()` with in-place `dirnames` pruning. Same repo now scans in ~2.4s.
   - Slicer ambiguity: a clearly dominant match got flagged ambiguous by weak unrelated matches — restored a score-ratio dominance check (guarded for the degenerate small-corpus case).
   - Slicer relevance leak: the BM25 search text included each node's full absolute file path, so a repo checked out under e.g. `.../Knowledge-News-App/...` made every single node spuriously match any query containing "news" — non-deterministic across checkout locations too. Fixed by indexing only the file's basename + qualname, never parent directories. Found by querying the slicer with plain-English questions a human who'd never read the repo would actually ask, not just code-shaped queries.
+  - Test-file exclusion (found dogfooding the slicer against this repo itself, see `eval/cases.md`): a widely-shared utility called from ~20 test functions made slice queries near it hit the 60-node cap dominated by test scaffolding instead of the real production-code neighborhood. Added `tests`/`test`/`__tests__`/`spec`/`specs` to `COMMON_SKIP_DIRS` (directory-name matching only, same mechanism as the venv fix) — test suites are never extracted at all now, in `scan` or `slice`. This repo's own self-scan went from 354 to 98 nodes.
 
 **Next up:** Phase 6 — IR schema + verifier.
 
