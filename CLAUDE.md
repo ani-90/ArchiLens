@@ -4,18 +4,20 @@ MCP server that reads a repo and produces an evidence-cited (`file:line`-traceab
 
 ## Current status (update this section whenever a phase completes or work resumes)
 
-**Last updated:** 2026-08-28
+**Last updated:** 2026-08-29
 
-Phases 0-4 complete and merged to `main` (clean tree, 164 tests passing):
+Phases 0-5 complete (not yet committed/pushed — implementation done, tests passing, ready to commit):
 - Phase 0: scaffold
 - Phase 1: Tier 0 IaC extractors (Terraform, docker-compose, Dockerfile, k8s)
 - Phase 2: Tier 1 YAML regex rule engine
 - Phase 3: Tier 2 tree-sitter AST extractors (Python, TypeScript)
 - Phase 4: graph assembly (NetworkX) + identity resolution + SHA-256 extraction cache
+- Phase 5: slicer (`src/archilens/graph/slice.py`) — BM25 seed (token-overlap relevance + BM25 ranking, robust to rank_bm25's degenerate zero/negative IDF on small corpora) + weighted bounded-Dijkstra k-hop expand (`MAX_HOP_BUDGET=3`, infra/tier-0 nodes admitted regardless of cost but don't teleport their neighbors) + 60-node cap (seeds/infra protected, deterministic drop order) + ambiguity detection via weakly-connected-components clustering of top BM25 matches. New `slice` CLI subcommand. Added `rank-bm25` dependency. 174 tests passing (164 existing + 10 new).
+- Also fixed in this pass: added missing `src/archilens/__main__.py` so `python -m archilens ...` (the exact form README documents) actually works — was broken since before phase 5, just never exercised.
 
-**Next up:** Phase 5 — slicer (BM25 seed + k-hop expand, ≤60 nodes).
+**Next up:** Phase 6 — IR schema + verifier.
 
-Not started: slicer, IR schema + verifier, layout/draw.io rendering, abstraction LLM pass, MCP server surface, tier 3 LLM extraction, eval harness.
+Not started: IR schema + verifier, layout/draw.io rendering, abstraction LLM pass, MCP server surface, tier 3 LLM extraction, eval harness.
 
 ## V1 public release target: through Phase 10
 
@@ -31,7 +33,7 @@ Decided 2026-08-28. Phase 10 (full MCP surface) is the release bar, not earlier:
 - Phase 12 (eval harness) — needed before making public hallucination-rate claims in marketing, but not a runtime dependency; do this right after v1 ships.
 - Phase 13 (CI gating, `diff_against_commit`, freeform mode) — genuine v2 features.
 
-So: **5 more phases after the current one (5→6→7→8→9→10)** stand between here and a public v1.
+So: **4 more phases after the current one (6→7→8→9→10)** stand between here and a public v1.
 
 ## Working agreement
 
