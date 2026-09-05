@@ -4,9 +4,12 @@ MCP server that reads a repo and produces an evidence-cited (`file:line`-traceab
 
 ## Current status (update this section whenever a phase completes or work resumes)
 
-**Last updated:** 2026-08-29
+**Last updated:** 2026-09-05
 
-Phases 0-5 complete and merged to `main` (178 tests passing):
+Phases 0-6 complete and merged to `main` (189 tests passing):
+- Phase 6: IR schema + verifier (`src/archilens/ir/`) — `schema.py` (`IRNode`/`IREdge`/`IRGraph`, a thin NetworkX-free wrapper reusing `EvidenceRecord`/`EdgeRecord` unchanged), `convert.py` (`graph_to_ir`, deterministic sort of an assembled/sliced `nx.MultiDiGraph` into the flat IR), `verify.py` (`verify_ir` — schema shape checks, referential integrity of edges against surviving node ids, and mechanical evidence resolution: does the cited file exist on disk and does the line fall within its real line count; unresolvable evidence is dropped and counted, mirroring `assemble_graph`'s existing dangling-edge pattern). Self-loops explicitly pass (genuine recursion, see "Known limits"). No pydantic/jsonschema added — plain dataclasses, consistent with the rest of the repo. Files are re-read from disk per verification run, not cached, since verification must reflect current on-disk state. Wired into `scan`/`slice` CLI output as a "verified IR" summary line rather than a new subcommand (nothing to decouple it from yet). Self-scan of this repo: 108 nodes/140 edges, 0 dropped by the verifier. Note: `EvidenceRecord`/`EdgeRecord` only carry a `file`/`line` *claim* — the verifier proves a citation is *possible* (file exists, line in range), not that its content matches the claim; an in-range but imprecise line number (e.g. off by one) is not caught by this check and would need an extractor-level content-matching test instead.
+
+Phases 0-5 complete and merged to `main`:
 - Phase 0: scaffold
 - Phase 1: Tier 0 IaC extractors (Terraform, docker-compose, Dockerfile, k8s)
 - Phase 2: Tier 1 YAML regex rule engine
@@ -23,9 +26,9 @@ Phases 0-5 complete and merged to `main` (178 tests passing):
 
 **Phase 5 slicer graded, 5 queries, average 1.8/3** (below the 2.5 bar for proceeding straight to phase 8) — see `eval/cases.md` Case 3. Two failure modes, both hub/graph-shape problems rather than slicer-logic bugs: (1) hub dilution — `ExtractionCache`'s methods disconnected from its class node, `EdgeRecord`/`EvidenceRecord` constructed almost everywhere; (2) BM25 document-length bias favoring a sparse dataclass over the real entry point (`main`). **Decision: not fixed at the slicer level** — phase 8 (abstraction/grouping) is the right place to solve this, not more BM25/k-hop tuning. Proceeding to phase 6 next per the existing build order (not phase 8 directly). Revisit Case 3 once phase 8 exists.
 
-**Next up:** Phase 6 — IR schema + verifier.
+**Next up:** Phase 7 — layout + draw.io renderer.
 
-Not started: IR schema + verifier, layout/draw.io rendering, abstraction LLM pass, MCP server surface, tier 3 LLM extraction, eval harness.
+Not started: layout/draw.io rendering, abstraction LLM pass, MCP server surface, tier 3 LLM extraction, eval harness.
 
 ## V1 public release target: through Phase 10
 
@@ -41,7 +44,7 @@ Decided 2026-08-28. Phase 10 (full MCP surface) is the release bar, not earlier:
 - Phase 12 (eval harness) — needed before making public hallucination-rate claims in marketing, but not a runtime dependency; do this right after v1 ships.
 - Phase 13 (CI gating, `diff_against_commit`, freeform mode) — genuine v2 features.
 
-So: **4 more phases after the current one (6→7→8→9→10)** stand between here and a public v1.
+So: **4 more phases after the current one (7→8→9→10)** stand between here and a public v1.
 
 ## Working agreement
 

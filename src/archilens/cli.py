@@ -17,6 +17,8 @@ from archilens.graph.resolve import (
     resolve_same_scope_calls,
 )
 from archilens.graph.slice import slice_graph
+from archilens.ir.convert import graph_to_ir
+from archilens.ir.verify import verify_ir
 
 EXTRACTORS = [
     ("terraform", parse_terraform),
@@ -101,6 +103,13 @@ def scan(repo_path: str) -> None:
         f"{stats.resolved_containment} added via build-context containment"
     )
 
+    verification = verify_ir(graph_to_ir(result.graph), repo_path)
+    print(
+        f"verified IR: {len(verification.ir.nodes)} nodes, {len(verification.ir.edges)} edges, "
+        f"{len(verification.dropped_nodes)} nodes dropped, "
+        f"{len(verification.dropped_edges)} edges dropped (schema/evidence)"
+    )
+
 
 def slice_cmd(repo_path: str, query: str, max_nodes: int) -> None:
     assembly = _build_assembly(repo_path, verbose=False).result
@@ -126,6 +135,13 @@ def slice_cmd(repo_path: str, query: str, max_nodes: int) -> None:
     for u, v, data in sorted(result.graph.edges(data=True), key=lambda e: (e[0], e[1])):
         relation = data["evidence"].attrs.get("relation", "")
         print(f"  [edge] {u} -> {v}  relation={relation}")
+
+    verification = verify_ir(graph_to_ir(result.graph), repo_path)
+    print(
+        f"verified IR: {len(verification.ir.nodes)} nodes, {len(verification.ir.edges)} edges, "
+        f"{len(verification.dropped_nodes)} nodes dropped, "
+        f"{len(verification.dropped_edges)} edges dropped (schema/evidence)"
+    )
 
 
 def main() -> None:
